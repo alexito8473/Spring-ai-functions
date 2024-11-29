@@ -4,32 +4,24 @@ import org.example.springaifunctions.model.WeatherRequest;
 import org.example.springaifunctions.model.WeatherResponse;
 import org.springframework.web.client.RestClient;
 
-import java.util.function.Function;
+public class WeatherServiceFunction extends ServiceFunction<WeatherRequest, WeatherResponse> {
 
-public class WeatherServiceFunction implements Function<WeatherRequest, WeatherResponse> {
-
-    public static final String WEATHER_URL = "https://api.api-ninjas.com/v1/weather";
-
-    private final String apiNinjaKey;
-
-    public WeatherServiceFunction(String apiNinjaKey) {
-        this.apiNinjaKey=apiNinjaKey;
+    public WeatherServiceFunction( String apiKey ) {
+        super(apiKey,
+                  "https://api.api-ninjas.com/v1/weather",
+                  "You are a weather service. You receive weather information from a service which gives you the information based on the metrics system.When answering the weather in an imperial system country, you should convert the temperature to Fahrenheit and the wind speed to miles per hour. ",
+                  "Weather",
+                  "Get current weather for a location",
+                  WeatherResponse.class);
     }
 
     @Override
     public WeatherResponse apply( WeatherRequest weatherRequest ) {
-        RestClient restClient = RestClient.builder()
-                  .baseUrl(WEATHER_URL)
-                  .defaultHeaders(httpHeaders ->{
-                      httpHeaders.set("X-Api-Key",apiNinjaKey);
-                      httpHeaders.set("Accept","application/json");
-                      httpHeaders.set("Content-Type","application/json");
-                  })
-                  .build();
+        RestClient restClient = createRestClient();
         return restClient.get().uri(uriBuilder -> {
             System.out.println("Building Uri");
-            uriBuilder.queryParam("lat",weatherRequest.lat());
-            uriBuilder.queryParam("lon",weatherRequest.lon());
+            uriBuilder.queryParam("lat", weatherRequest.lat());
+            uriBuilder.queryParam("lon", weatherRequest.lon());
             return uriBuilder.build();
         }).retrieve().body(WeatherResponse.class);
     }

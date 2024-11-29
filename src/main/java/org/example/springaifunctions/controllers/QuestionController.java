@@ -17,5 +17,8 @@ public class QuestionController {
     public Answer askQuestion( @RequestBody Question question) {
         return openAIServices.getAnswer(question);
     }
-
+    @PostMapping("/stockTicker")
+    public Answer askTicker( @RequestBody Question question) {
+        return openAIServices.getStockPrice(question);
+    }
 }

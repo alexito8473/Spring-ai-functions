@@ -1,10 +1,11 @@
 package org.example.springaifunctions.services;
 
 import lombok.RequiredArgsConstructor;
+import org.example.springaifunctions.functions.ServiceFunction;
+import org.example.springaifunctions.functions.StockTickerServiceFunction;
 import org.example.springaifunctions.functions.WeatherServiceFunction;
 import org.example.springaifunctions.model.Answer;
 import org.example.springaifunctions.model.Question;
-import org.example.springaifunctions.model.WeatherResponse;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
@@ -30,18 +31,24 @@ public class OpenAiServicesImpl implements OpenAIServices {
 
     @Override
     public Answer getAnswer( Question question ) {
-        OpenAiChatOptions options=OpenAiChatOptions.builder().
-                  withFunctionCallbacks(List.of(
-                            FunctionCallbackWrapper.builder(
-                                      new WeatherServiceFunction(apiNinjaKey))
-                                      .withName("weather")
-                                      .withDescription("CurrentWeather")
-                                      .withDescription("Get current weather for a location")
-                                      .withResponseConverter(weatherResponse -> ModelOptionsUtils.getJsonSchema(WeatherResponse.class, false) + "\n" + ModelOptionsUtils.toJsonString(weatherResponse)).build()))
+        return callOpenAiFunction(
+                  question,new WeatherServiceFunction(apiNinjaKey));
+    }
+
+    @Override
+    public Answer getStockPrice( Question question ) {
+       return callOpenAiFunction(question, new StockTickerServiceFunction(apiNinjaKey));
+}
+
+    private <T,K> Answer callOpenAiFunction( Question question, ServiceFunction<T,K> serviceFunction) {
+        OpenAiChatOptions options=OpenAiChatOptions.builder().withFunctionCallbacks(List.of(FunctionCallbackWrapper.builder(serviceFunction)
+                                      .withName(serviceFunction.getName())
+                                      .withDescription(serviceFunction.getDescription())
+                                      .withResponseConverter(response -> ModelOptionsUtils.getJsonSchema(serviceFunction.getClassType(), false)
+                                                + "\n" + ModelOptionsUtils.toJsonString(response)).build()))
                   .build();
         Message userMessage= new PromptTemplate(question.question()).createMessage();
-        Message systemMessage = new SystemPromptTemplate("You are a weather service. You receive weather information from a service which gives you the information based on the metrics system." +
-                  " When answering the weather in an imperial system country, you should convert the temperature to Fahrenheit and the wind speed to miles per hour. ").createMessage();
-        return new Answer(openAiChatModel.call(new Prompt(List.of(userMessage,systemMessage),options)).getResult().getOutput().getContent());
+        Message systemMessage = new SystemPromptTemplate(serviceFunction.getMessagePromptTemplate()).createMessage();
+        return new Answer(openAiChatModel.call(new Prompt(List.of(userMessage, systemMessage), options)).getResult().getOutput().getContent());
     }
 }
